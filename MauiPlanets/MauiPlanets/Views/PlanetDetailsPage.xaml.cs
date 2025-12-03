@@ -1,14 +1,19 @@
+using MauiPlanets.Models;
+
+
 namespace MauiPlanets.Views;
 
 public partial class PlanetDetailsPage : ContentPage
 {
-	public PlanetDetailsPage()
+	public PlanetDetailsPage(Planet planet)
 	{
 		InitializeComponent();
+
+		this.BindingContext = planet;
 	}
 
-    private void BackButton_Clicked(object sender, EventArgs e)
+    async void BackButton_Clicked(System.Object sender, System.EventArgs e)
     {
-
+		await Navigation.PopAsync();
     }
 }
