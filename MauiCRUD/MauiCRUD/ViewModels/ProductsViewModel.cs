@@ -1,4 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Javax.Security.Auth;
 using MauiCRUD.Data;
 using MauiCRUD.Models;
 using System.Collections.ObjectModel;
@@ -26,5 +28,108 @@ namespace MauiCRUD.ViewModels
 
         [ObservableProperty]
         private string _busyText;
+
+        public async Task LoadProductAsync()
+        {
+            await ExecuteAsync(async () =>
+            {
+                var products = await _context.GetAllAsync<Product>();
+                if (Products is not null && products.Any())
+                {
+                    //mis operaator on ??= . Kui ei ole väärtust, siis annab väärtuse
+                    //kui juba on olemas, siis ei muuda olemasolevat väärtust
+                    Products ??= new ObservableCollection<Product>();
+
+                    foreach (var product in products)
+                    {
+                        Products.Add(product);
+                    }
+                }
+            }, "Fetching products...");
+        }
+
+        private async Task ExecuteAsync(Func<Task> operating, string? busyText = null)
+        {
+            IsBusy = true;
+            BusyText = busyText ?? "Processing...";
+            try
+            {
+                await operating?.Invoke();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+            finally
+            {
+                IsBusy = false;
+                BusyText = "Processing...";
+            }
+        }
+
+        [RelayCommand]
+        private void SetOperatingProduct(Product? product) => OperatingProduct = product ?? new();
+
+        [RelayCommand]
+        private async Task SaveProductAsync()
+        {
+            if (OperatingProduct is null)
+            {
+                return;
+            }
+
+            var (isValid, errorMessage) = OperatingProduct.Validate();
+            if (!isValid)
+            {
+                await Shell.Current.DisplayAlert("Validate Error", errorMessage, "Ok");
+                return;
+            }
+
+            var busyText = OperatingProduct.Id == 0 ? "Creating product..." : "Updating product...";
+            await ExecuteAsync(async () =>
+            {
+                if (OperatingProduct.Id == 0)
+                {
+                    await _context.AddItemAsync<Product>(OperatingProduct);
+                    Products.Add(OperatingProduct);
+                }
+                else
+                {
+                    if(await _context.UpdateItemAsync<Product>(OperatingProduct))
+                    {
+                        var productCopy = OperatingProduct.Clone();
+
+                        var index = Products.IndexOf(OperatingProduct);
+                        Products.RemoveAt(index);
+
+                        Products.Insert(index, productCopy);
+                    }
+                    else
+                    {
+                        await Shell.Current.DisplayAlert("Error", "Product updating error", "Ok");
+                        return;
+                    }
+                }
+                SetOperatingProductCommand.Execute(new());
+            }, busyText);
+        }
+
+        [RelayCommand]
+        private async Task DeleteProductAsync(int id)
+        {
+            await ExecuteAsync(async () =>
+            {
+                if(await _context.DeleteItemByKeyAsync<Product>(id))
+                {
+                    var product = Products.FirstOrDefault(x => x.Id == id);
+                    Products.Remove(product);
+                }
+                else
+                {
+                    await Shell.Current.DisplayAlert("Delete Error", "Product was not deleted", "Ok");
+                }
+            }, "Deleting product...");
+        }
     }
 }
