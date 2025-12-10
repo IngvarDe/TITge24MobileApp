@@ -6,7 +6,7 @@ namespace MauiCRUD.Data
 {
     public class DatabaseContext
     {
-        private const string DbName = "CRUDdb1" + "";
+        private const string DbName = "CRUDdb2" + "";
 
         private static string DbPath => Path.Combine(".", DbName);
 
@@ -53,6 +53,12 @@ namespace MauiCRUD.Data
         {
             await CreateTableIfNotExists<TTable>();
             return await Database.UpdateAsync(item) > 0;
+        }
+
+        public async Task<bool> DeleteItemAsync<TTable>(TTable item) where TTable : class, new()
+        {
+            await CreateTableIfNotExists<TTable>();
+            return await Database.DeleteAsync(item) > 0;
         }
 
         public async Task<bool> DeleteItemByKeyAsync<TTable>(object primaryKey) where TTable : class, new()
